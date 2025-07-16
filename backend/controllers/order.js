@@ -212,11 +212,82 @@ const getOrdersByCustomer = (req, res) => {
   };
   
 
+// ADMIN: Get all orders
+const getAllOrders = (req, res) => {
+  // Get all orders with shipping info
+  const sql = `
+    SELECT 
+      o.orderinfo_id,
+      o.customer_id,
+      o.date_placed,
+      o.date_shipped,
+      o.date_delivered,
+      o.status,
+      s.region,
+      s.rate
+    FROM orderinfo o
+    JOIN shipping s ON o.shipping_id = s.shipping_id
+    ORDER BY o.date_placed DESC
+  `;
+
+  db.query(sql, (err, orders) => {
+    if (err) {
+      console.error("Error fetching all orders:", err);
+      return res.status(500).json({ success: false, message: "Error fetching orders" });
+    }
+
+    if (!orders.length) {
+      return res.json({ success: true, data: [] });
+    }
+
+    // Get all order lines for these orders
+    const orderIds = orders.map(o => o.orderinfo_id);
+    const placeholders = orderIds.map(() => '?').join(',');
+
+    const itemSql = `
+      SELECT 
+        ol.orderinfo_id,
+        i.item_name,
+        i.sell_price AS price,
+        ol.quantity
+      FROM orderline ol
+      JOIN item i ON i.item_id = ol.item_id
+      WHERE ol.orderinfo_id IN (${placeholders})
+    `;
+
+    db.query(itemSql, [...orderIds], (err, orderItems) => {
+      if (err) {
+        console.error("Error fetching order items:", err);
+        return res.status(500).json({ success: false, message: "Error fetching items" });
+      }
+
+      // Group items by orderinfo_id
+      const grouped = {};
+      orderItems.forEach(item => {
+        if (!grouped[item.orderinfo_id]) grouped[item.orderinfo_id] = [];
+        grouped[item.orderinfo_id].push({
+          item_name: item.item_name,
+          quantity: item.quantity,
+          price: item.price
+        });
+      });
+
+      // Attach items to orders
+      const final = orders.map(order => ({
+        ...order,
+        items: grouped[order.orderinfo_id] || []
+      }));
+
+      res.json({ success: true, data: final });
+    });
+  });
+};
+
 module.exports = {
   createOrder,
   getOrdersByCustomer,
   getShippingOptions,
   updateOrderStatus,
-   updateOrderStatusGet
-
+  updateOrderStatusGet,
+  getAllOrders
 };

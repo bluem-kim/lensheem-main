@@ -6,6 +6,8 @@ const { updateOrderStatus } = require('../controllers/order');
 // Create a new order
 router.post('/', orderController.createOrder);
 
+router.get('/admin/all', orderController.getAllOrders);
+
 // Get orders by customer ID
 router.get('/customer/:customerId', orderController.getOrdersByCustomer);
 

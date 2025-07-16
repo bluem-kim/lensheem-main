@@ -4,66 +4,47 @@
   <meta charset="UTF-8">
   <title>My Orders</title>
   <link rel="stylesheet" href="assets/css/bootstrap.min.css">
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
   <style>
     body { padding: 2rem; }
-    .order-items-list { font-size: 0.95em; color: #555; }
+    .card { border-radius: 10px; }
+    .card-title { font-size: 1.2rem; }
   </style>
 </head>
 <body>
   <h2>My Orders</h2>
-  <table id="ordersTable" class="display" style="width:100%">
-    <thead>
-      <tr>
-        <th>Order ID</th>
-        <th>Date Placed</th>
-        <th>Status</th>
-        <th>Shipping Region</th>
-        <th>Shipping Rate</th>
-        <th>Items</th>
-      </tr>
-    </thead>
-    <tbody>
-      <!-- Data will be inserted here -->
-    </tbody>
-  </table>
-
+  <div id="ordersContainer" class="row"></div>
   <div id="no-orders" style="display:none; color: #888; margin-top:2rem;">You have no orders yet.</div>
 
   <script src="assets/js/vendor/jquery-3.3.1.min.js"></script>
-  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script>
-    // Try to get the customer ID from multiple possible keys
-    let customerId = localStorage.getItem('customer_id')
-      || localStorage.getItem('user_id')
-      || sessionStorage.getItem('customer_id')
-      || sessionStorage.getItem('user_id');
-
+    const customerId = localStorage.getItem('customer_id');
     if (!customerId) {
       alert('You must be logged in to view your orders.');
       window.location.href = 'login.html';
     } else {
       $.get(`/api/orders/customer/${customerId}`, function(response) {
         if (response.success && response.data.length > 0) {
-          const rows = response.data.map(order => {
+          const cards = response.data.map(order => {
             const itemsHtml = order.items.map(item =>
-              `<div class="order-items-list">${item.item_name} (x${item.quantity}) - ₱${item.price}</div>`
+              `<div>${item.item_name} <span style="color:#888;">(x${item.quantity})</span> - ₱${item.price}</div>`
             ).join('');
             return `
-              <tr>
-                <td>${order.orderinfo_id}</td>
-                <td>${order.date_placed || ''}</td>
-                <td>${order.status}</td>
-                <td>${order.region}</td>
-                <td>₱${order.rate}</td>
-                <td>${itemsHtml}</td>
-              </tr>
+              <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                  <div class="card-body">
+                    <h5 class="card-title">Order #${order.orderinfo_id}</h5>
+                    <p class="card-text mb-1"><strong>Date Placed:</strong> ${order.date_placed || ''}</p>
+                    <p class="card-text mb-1"><strong>Status:</strong> ${order.status}</p>
+                    <p class="card-text mb-1"><strong>Shipping:</strong> ${order.region} - ₱${order.rate}</p>
+                    <div class="card-text"><strong>Items:</strong><br>${itemsHtml}</div>
+                  </div>
+                </div>
+              </div>
             `;
           }).join('');
-          $('#ordersTable tbody').html(rows);
-          $('#ordersTable').DataTable();
+          $('#ordersContainer').html(cards);
         } else {
-          $('#ordersTable').hide();
+          $('#ordersContainer').hide();
           $('#no-orders').show();
         }
       });

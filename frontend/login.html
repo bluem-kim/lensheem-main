@@ -115,20 +115,20 @@
         return;
       }
     });
-
+  
     $('#CustomerLoginForm').on('submit', function (e) {
       e.preventDefault();
       $('#loginMsg').hide();
       $('#loading').show();
       $('#submitBtn').prop('disabled', true).text('Signing In...');
-
+  
       const email = $('#CustomerEmail').val().trim();
       const password = $('#CustomerPassword').val();
-
+  
       if (!email || !password) return showError('Please fill in all fields.');
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) return showError('Invalid email address.');
-
+  
       $.ajax({
         url: '/api/users/login',
         method: 'POST',
@@ -141,10 +141,38 @@
             localStorage.setItem('userId', res.user.id);
             localStorage.setItem('userName', res.user.name);
             if (res.user.role) localStorage.setItem('userRole', res.user.role);
+  
+            // Debug: Log before fetch
+            console.log('About to fetch customer_id for user:', res.user.id);
+  
+            // Fetch and store customer_id
+            fetch(`/api/users/customer/by-user/${res.user.id}`)
+              .then(response => response.json())
+              .then(data => {
+                console.log('Fetched customer_id:', data.customer_id, 'Full response:', data);
+                if (data.success && data.customer_id) {
+                  localStorage.setItem('customer_id', data.customer_id);
+                } else {
+                  console.warn('No customer_id found for this user.');
+                }
+                // Redirect after storing customer_id
+                setTimeout(() => {
+                  const redirectUrl = res.user && res.user.role === 'admin' ? 'dashboard.html' : 'index.html';
+                  window.location.href = redirectUrl;
+                }, 1500);
+              })
+              .catch((err) => {
+                console.error('Error fetching customer_id:', err);
+                // Even if customer_id fetch fails, still redirect
+                setTimeout(() => {
+                  const redirectUrl = res.user && res.user.role === 'admin' ? 'dashboard.html' : 'index.html';
+                  window.location.href = redirectUrl;
+                }, 1500);
+              });
+            return; // Prevent double redirect
           }
           setTimeout(() => {
-            const redirectUrl = res.user && res.user.role === 'admin' ? 'dashboard.html' : 'index.html';
-            window.location.href = redirectUrl;
+            window.location.href = 'index.html';
           }, 1500);
         },
         error: function (xhr, status) {
@@ -160,7 +188,7 @@
         }
       });
     });
-
+  
     function showError(msg) {
       $('#loginMsg').removeClass('alert-success alert-info').addClass('alert-danger').text('❌ ' + msg).show();
       $('#loading').hide();
